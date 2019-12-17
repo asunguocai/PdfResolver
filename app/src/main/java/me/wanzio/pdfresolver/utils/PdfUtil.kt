@@ -118,7 +118,7 @@ object PdfUtil {
                     BitmapFactory.decodeFile(imagePath, options)
                     // 2.计算缩放比例
                     // 获取宽高比
-                    val radio = options.outWidth / options.outHeight
+                    val radio = options.outWidth.toFloat() / options.outHeight.toFloat()
                     val a4Radio = PageSize.A4.width / PageSize.A4.height
                     // 将宽高等比例缩放至A4大小
                     var width = PageSize.A4.width
@@ -131,10 +131,6 @@ object PdfUtil {
                     // 3.加载绘制(不降低采样率)
                     options.inJustDecodeBounds = false
                     val image = BitmapFactory.decodeFile(imagePath, options)
-                    Log.d(
-                        TAG,
-                        "width:$width,height:$height,A4 width:${PageSize.A4.width},A4 height:${PageSize.A4.height}"
-                    )
                     save()
                     translate((PageSize.A4.width - width) / 2, (PageSize.A4.height - height) / 2)
                     scale(width / options.outWidth, height / options.outHeight)
@@ -142,12 +138,14 @@ object PdfUtil {
                     restore()
                     // 4.画水印
                     icon?.let {
+                        save()
                         val iconBitmap = BitmapFactory.decodeByteArray(it, 0, it.size)
                         translate(
                             PageSize.A4.width - iconBitmap.width - 10f,
                             PageSize.A4.height - iconBitmap.height - 10f
                         )
                         drawBitmap(iconBitmap, 0f, 0f, paint)
+                        restore()
                     }
                 }
                 document.finishPage(page)
