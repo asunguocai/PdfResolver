@@ -1,6 +1,7 @@
 package me.wanzio.pdfresolver.utils
 
 import android.graphics.*
+import android.graphics.pdf.PdfDocument
 import android.os.SystemClock
 import android.util.Log
 import com.itextpdf.text.*
@@ -79,6 +80,93 @@ object PdfUtil {
         }
     }
 
+    fun createPdfUsePdfDocument(
+        outputFilePath: String,
+        icon: ByteArray? = null,
+        filePaths: List<String>,
+        listener: OnEventListener? = null
+    ) {
+        if (filePaths.isEmpty()) listener?.onFail()
+        val outputDir = File("$outputFilePath")
+        if (!outputDir.exists() || !outputDir.isDirectory) {
+            Log.d(TAG, "outputFilePath 必须是文件夹")
+            listener?.onFail()
+        }
+
+        // 最低支持到API 19
+        val document = PdfDocument()
+
+        try {
+            val paint = Paint()
+            filePaths.forEach { imagePath ->
+                val img = File(imagePath)
+                if (!img.exists()) {
+                    listener?.onFail()
+                    return
+                }
+                // 0.创建A4大小的新页
+                val pageInfo = PdfDocument.PageInfo.Builder(
+                    PageSize.A4.width.toInt(),
+                    PageSize.A4.height.toInt(),
+                    1
+                ).create()
+                val page = document.startPage(pageInfo)
+                page.canvas.apply {
+                    // 1.获取图片宽/高
+                    val options = BitmapFactory.Options()
+                    options.inJustDecodeBounds = true
+                    BitmapFactory.decodeFile(imagePath, options)
+                    // 2.计算缩放比例
+                    // 获取宽高比
+                    val radio = options.outWidth / options.outHeight
+                    val a4Radio = PageSize.A4.width / PageSize.A4.height
+                    // 将宽高等比例缩放至A4大小
+                    var width = PageSize.A4.width
+                    var height = options.outHeight * (PageSize.A4.width / options.outWidth)
+                    // 如果是宽图
+                    if (radio < a4Radio) {
+                        height = PageSize.A4.height
+                        width = height * radio
+                    }
+                    // 3.加载绘制(不降低采样率)
+                    options.inJustDecodeBounds = false
+                    val image = BitmapFactory.decodeFile(imagePath, options)
+                    Log.d(
+                        TAG,
+                        "width:$width,height:$height,A4 width:${PageSize.A4.width},A4 height:${PageSize.A4.height}"
+                    )
+                    save()
+                    translate((PageSize.A4.width - width) / 2, (PageSize.A4.height - height) / 2)
+                    scale(width / options.outWidth, height / options.outHeight)
+                    drawBitmap(image, 0f, 0f, paint)
+                    restore()
+                    // 4.画水印
+                    icon?.let {
+                        val iconBitmap = BitmapFactory.decodeByteArray(it, 0, it.size)
+                        translate(
+                            PageSize.A4.width - iconBitmap.width - iconBitmap.height - 10f,
+                            PageSize.A4.height - 10f
+                        )
+                        drawBitmap(iconBitmap, 0f, 0f, paint)
+                    }
+                }
+                document.finishPage(page)
+            }
+
+            val filePath =
+                "$outputFilePath${File.separator}temp_pdf_${SystemClock.uptimeMillis()}.pdf"
+            val output = FileOutputStream(File(filePath))
+            document.writeTo(output)
+            listener?.onSuccess(filePath)
+        } catch (e: Exception) {
+            Log.d(TAG, e.message)
+            listener?.onFail()
+        } finally {
+//            document.close()
+        }
+
+    }
+
     private fun addPage(document: Document, filePath: String): Boolean {
         if (!File(filePath).exists()) {
             return false
@@ -99,7 +187,7 @@ object PdfUtil {
         val a4Radio = PageSize.A4.width / PageSize.A4.height
         // 将宽高等比例缩放至A4大小
         var width = PageSize.A4.width
-        var height = PageSize.A4.height * radio
+        var height = image.height * (PageSize.A4.width / image.width)
         // 如果是宽图
         if (radio < a4Radio) {
             height = PageSize.A4.height

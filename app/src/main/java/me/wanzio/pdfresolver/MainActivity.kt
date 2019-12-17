@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.icu.util.TimeUnit
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.os.SystemClock
@@ -47,6 +48,7 @@ class MainActivity : AppCompatActivity(), PermissionFragment.OnGrantListener,
         runOnUiThread {
             switchProgress(false)
             Log.d(TAG, "pdf create success")
+            mTvRenderTime.setText("Use Time:${SystemClock.uptimeMillis() - mTag} ms")
             loadPdf(filePath)
         }
     }
@@ -67,11 +69,15 @@ class MainActivity : AppCompatActivity(), PermissionFragment.OnGrantListener,
         mBtnSelectPic.isEnabled = true
     }
 
+    private lateinit var mTvRenderTime: TextView
+    private lateinit var mBtnCreateByNative: Button
     private lateinit var mPdfViewer: PDFView
     private lateinit var mBtnSelectPic: Button
     private lateinit var mBtnCreatePdf: Button
     private lateinit var mVProgress: View
     private lateinit var mTvPageIndecitor: TextView
+
+    private var mTag:Long = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -90,13 +96,26 @@ class MainActivity : AppCompatActivity(), PermissionFragment.OnGrantListener,
                 switchProgress(true)
                 mTvPageIndecitor.isVisible = false
                 thread {
+                    mTag = SystemClock.uptimeMillis()
                     createPdf()
+                }
+            }
+        }
+        mBtnCreateByNative = findViewById<Button>(R.id.btn_create_use_native)
+        mBtnCreateByNative.setOnClickListener {
+            it.checkDouleClick {
+                switchProgress(true)
+                mTvPageIndecitor.isVisible = false
+                thread {
+                    mTag = SystemClock.uptimeMillis()
+                    createPdfByNative()
                 }
             }
         }
         mPdfViewer = findViewById(R.id.pdfview)
         mVProgress = findViewById(R.id.v_progress)
         mTvPageIndecitor = findViewById(R.id.tv_pager_indicotr)
+        mTvRenderTime = findViewById(R.id.tv_render_time)
     }
 
     private fun createPdf() {
@@ -112,9 +131,23 @@ class MainActivity : AppCompatActivity(), PermissionFragment.OnGrantListener,
         )
     }
 
+    private fun createPdfByNative() {
+        var bitmap = BitmapFactory.decodeResource(resources, R.drawable.ic_senior_watermark)
+        bitmap = PdfUtil.extractThumbnail(bitmap, bitmap.width / 18, bitmap.height / 18)
+        val baos = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, baos)
+        PdfUtil.createPdfUsePdfDocument(
+            filesDir.path,
+            baos.toByteArray(),
+            mImageList,
+            this
+        )
+    }
+
 
     private fun switchProgress(isShow: Boolean) {
         mBtnCreatePdf.isEnabled = !isShow
+        mBtnCreateByNative.isEnabled = !isShow
         if (isShow && !mVProgress.isVisible) mVProgress.isVisible = true
         else if (!isShow && mVProgress.isVisible) mVProgress.isVisible = false
     }
@@ -187,7 +220,7 @@ class MainActivity : AppCompatActivity(), PermissionFragment.OnGrantListener,
     private fun loadPdf(filePath: String) {
         mPdfViewer.fromFile(File(filePath))
             .onPageChange({ page, pageCount ->
-                mTvPageIndecitor.setText(getString(R.string.cur_page, page+1, pageCount))
+                mTvPageIndecitor.setText(getString(R.string.cur_page, page + 1, pageCount))
             })
             .onLoad {
                 mTvPageIndecitor.isVisible = true
