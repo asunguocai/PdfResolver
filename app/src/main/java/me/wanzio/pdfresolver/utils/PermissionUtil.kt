@@ -9,7 +9,7 @@ import me.wanzio.pdfresolver.PermissionFragment
 
 object PermissionUtil {
 
-    fun requirePermission(
+    fun requirePermissions(
         context: AppCompatActivity,
         permission: Set<String>,
         onGrantListener: PermissionFragment.OnGrantListener
@@ -36,7 +36,6 @@ object PermissionUtil {
                 context.lifecycle.removeObserver(this)
             }
         })
-
     }
 
 
