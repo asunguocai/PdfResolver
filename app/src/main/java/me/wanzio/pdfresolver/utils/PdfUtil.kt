@@ -144,8 +144,8 @@ object PdfUtil {
                     icon?.let {
                         val iconBitmap = BitmapFactory.decodeByteArray(it, 0, it.size)
                         translate(
-                            PageSize.A4.width - iconBitmap.width - iconBitmap.height - 10f,
-                            PageSize.A4.height - 10f
+                            PageSize.A4.width - iconBitmap.width - 10f,
+                            PageSize.A4.height - iconBitmap.height - 10f
                         )
                         drawBitmap(iconBitmap, 0f, 0f, paint)
                     }
